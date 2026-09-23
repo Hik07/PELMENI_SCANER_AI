@@ -31,7 +31,7 @@ print(f"Используеться устройство: {device}")
 
 model = models.resnet18(weights=None)
 
-model.fc = nn.Linear(model.fs.in_features, len(CLASS_NAMES))
+model.fc = nn.Linear(model.fc.in_features, len(CLASS_NAMES))
 
 model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
 
@@ -139,7 +139,7 @@ while True:
             print(f"Вижу: {class_name} | Уверенность: {confidence:.0%}")
 
             if current_state == State_Wath_Water:
-                if class_name == 'кипящая вода' and confidence >= CONFIDENCE_THRESHOLD:
+                if class_name == 'кипящая_вода' and confidence >= CONFIDENCE_THRESHOLD:
                     print("\nВОДА ЗАКИПЕЛА\n")
                     current_state = State_Wath_Pelmeni
 
@@ -148,7 +148,7 @@ while True:
                     time.sleep(75)
 
                 elif current_state == State_Wath_Pelmeni:
-                    if class_name == 'кипящие пельмени' and  confidence >= CONFIDENCE_THRESHOLD:
+                    if class_name == 'кипящие_пельмени' and  confidence >= CONFIDENCE_THRESHOLD:
                         print("ПИЛЬМЕНИ КИПЯТ НАХУЙ")
                         timer_start = time.time()
                         current_state = State_Wath_Varka
@@ -167,7 +167,7 @@ while True:
                             display_label = "ПЕЛЬМЕНИ ГОТОВЫ"
                             display_color = (0,255,0)
                         else:
-                            now = time.time
+                            now = time.time()
 
                             if now - last_timer_print_time >= 60:
                                 mins_left = int(remaining % 60)
