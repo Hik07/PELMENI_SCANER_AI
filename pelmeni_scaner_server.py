@@ -147,35 +147,35 @@ while True:
 
                     time.sleep(75)
 
-                elif current_state == State_Wath_Pelmeni:
-                    if class_name == 'кипящие_пельмени' and  confidence >= CONFIDENCE_THRESHOLD:
-                        print("ПИЛЬМЕНИ КИПЯТ НАХУЙ")
-                        timer_start = time.time()
-                        current_state = State_Wath_Varka
+            elif current_state == State_Wath_Pelmeni:
+                if class_name == 'кипящие_пельмени' and  confidence >= CONFIDENCE_THRESHOLD:
+                    print("ПИЛЬМЕНИ КИПЯТ НАХУЙ")
+                    timer_start = time.time()
+                    current_state = State_Wath_Varka
 
-                        display_color = (0, 255, 0)
+                    display_color = (0, 255, 0)
 
-                    elif current_state == State_Wath_Varka:
+                elif current_state == State_Wath_Varka:
 
-                        elapsed = time.time() - timer_start
+                    elapsed = time.time() - timer_start
 
-                        remaining = (TIMER_MNIUTES * 60) - elapsed
+                    remaining = (TIMER_MNIUTES * 60) - elapsed
 
-                        if remaining <= 0:
-                            print("ПЕЛЬМЕНИ ГОТОВЫ")
-                            current_state = State_Gotovo
-                            display_label = "ПЕЛЬМЕНИ ГОТОВЫ"
-                            display_color = (0,255,0)
-                        else:
-                            now = time.time()
+                    if remaining <= 0:
+                        print("ПЕЛЬМЕНИ ГОТОВЫ")
+                        current_state = State_Gotovo
+                        display_label = "ПЕЛЬМЕНИ ГОТОВЫ"
+                        display_color = (0,255,0)
+                    else:
+                        now = time.time()
 
-                            if now - last_timer_print_time >= 60:
-                                mins_left = int(remaining % 60)
-                                secs_left = int(remaining % 60)
+                        if now - last_timer_print_time >= 60:
+                            mins_left = int(remaining // 60)
+                            secs_left = int(remaining % 60)
 
-                                print(f"Осталось: {mins_left} мин, {secs_left} сек")
+                            print(f"Осталось: {mins_left} мин, {secs_left} сек")
 
-                                last_timer_print_time = now
+                            last_timer_print_time = now
 
                             mins_left = int(remaining // 60)
                             secs_left = int(remaining % 60)
