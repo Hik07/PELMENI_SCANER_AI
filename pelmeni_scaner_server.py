@@ -138,59 +138,60 @@ while True:
 
             print(f"Вижу: {class_name} | Уверенность: {confidence:.0%}")
 
-            if current_state == State_Wath_Water:
-                if class_name == 'кипящая_вода' and confidence >= CONFIDENCE_THRESHOLD:
-                    print("\nВОДА ЗАКИПЕЛА\n")
-                    current_state = State_Wath_Pelmeni
+        if current_state == State_Wath_Water:
+            if class_name == 'кипящая_вода' and confidence >= CONFIDENCE_THRESHOLD:
+                print("\nВОДА ЗАКИПЕЛА\n")
+                current_state = State_Wath_Pelmeni
 
-                    display_color = (0, 165, 255)
+                display_color = (0, 165, 255)
 
-                    time.sleep(75)
+                time.sleep(75)
 
-            elif current_state == State_Wath_Pelmeni:
-                if class_name == 'кипящие_пельмени' and  confidence >= CONFIDENCE_THRESHOLD:
-                    print("ПИЛЬМЕНИ КИПЯТ НАХУЙ")
-                    timer_start = time.time()
-                    current_state = State_Wath_Varka
+        elif current_state == State_Wath_Pelmeni:
+            if class_name == 'кипящие_пельмени' and  confidence >= CONFIDENCE_THRESHOLD:
+                print("ПИЛЬМЕНИ КИПЯТ НАХУЙ")
+                timer_start = time.time()
+                current_state = State_Wath_Varka
 
-                    display_color = (0, 255, 0)
+                display_color = (0, 255, 0)
 
-                elif current_state == State_Wath_Varka:
+        elif current_state == State_Wath_Varka:
 
-                    elapsed = time.time() - timer_start
+            elapsed = time.time() - timer_start
 
-                    remaining = (TIMER_MNIUTES * 60) - elapsed
+            remaining = (TIMER_MNIUTES * 60) - elapsed
 
-                    if remaining <= 0:
-                        print("ПЕЛЬМЕНИ ГОТОВЫ")
-                        current_state = State_Gotovo
-                        display_label = "ПЕЛЬМЕНИ ГОТОВЫ"
-                        display_color = (0,255,0)
-                    else:
-                        now = time.time()
+            if remaining <= 0:
+                print("ПЕЛЬМЕНИ ГОТОВЫ")
+                current_state = State_Gotovo
+                display_label = "ПЕЛЬМЕНИ ГОТОВЫ"
+                display_color = (0,255,0)
+            else:
+                 
+                now = time.time()
 
-                        if now - last_timer_print_time >= 60:
-                            mins_left = int(remaining // 60)
-                            secs_left = int(remaining % 60)
+                if now - last_timer_print_time >= 60:
+                    mins_left = int(remaining // 60)
+                    secs_left = int(remaining % 60)
 
-                            print(f"Осталось: {mins_left} мин, {secs_left} сек")
+                    print(f"Осталось: {mins_left} мин, {secs_left} сек")
 
-                            last_timer_print_time = now
+                    last_timer_print_time = now
 
-                            mins_left = int(remaining // 60)
-                            secs_left = int(remaining % 60)
+                    mins_left = int(remaining // 60)
+                    secs_left = int(remaining % 60)
 
-                            display_label = f"Варитья {mins_left}:{secs_left:02d}"
+                    display_label = f"Варитья {mins_left}:{secs_left:02d}"
 
-                            display_color = (0,255,255)
+                    display_color = (0,255,255)
 
-                    elif current_state == State_Gotovo:
+        elif current_state == State_Gotovo:
                             
-                        display_label = "ПЕЛЬМЕНИ ГОТОВЫ!"
-                        display_color = (0,255,0)
+            display_label = "ПЕЛЬМЕНИ ГОТОВЫ!"
+            display_color = (0,255,0)
     if display_label:
         cv2.putText(frame, display_label, (10,40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, display_color, 2)
-    cv2.imshow("Камера с телефона", frame)
+        cv2.imshow("Камера с телефона", frame)
 
     if cv2.waitKey(1) & 0xFF == 27:
         break                
