@@ -6,8 +6,14 @@ import torch
 import torch.nn as nn
 import torchvision 
 from torchvision import models, transforms
+import os
+import sys
+import tkinter as tk
+from PIL import Image, ImageTk
 
-#Настройки 
+def fix_russian_text(text):
+    """Конвертирует UTF-8 строки в кодировку Windows для OpenCV"""
+    return text.encode('utf-8').decode('cp1251')
 
 MODEL_PATH = "pelmeni_model.pth"
 
@@ -21,9 +27,9 @@ CHECK_EVERY_N_FRAMES = 15
 
 TIMER_MNIUTES = 8
 
-RTSP_URL = "rtsp://192.168.0.36:8080"
-
+RTSP_TIMEOUT = 2500
 #Загрузка нейросети 
+os.system('chcp 866 >nul 2>&1')
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -83,119 +89,176 @@ State_Gotovo = 4
 current_state = State_Wath_Water
 
 timer_start = None
+wait_until = 0.0 
 
 last_timer_print_time = 0
 
 frame_counter = 0
 
-
-print("подключение к серверу на телефоне")
-
-while True:
-    cap = cv2.VideoCapture(RTSP_URL)
-
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-    if cap.isOpened():
-
-        ret, frame = cap.read()
-
-        if ret and frame is not None:
-            print("Подключенно к серверу!")
-            break
-        
-        cap.release()
-
-        print("Переподключение через 10 секунд...")
-        time.sleep(10)
-
-cv2.namedWindow("Камера с телефона", cv2.WINDOW_NORMAL)
-
-cv2.resizeWindow("Камера с телефона", 640, 480)
-
-cv2.setWindowProperty("Камера с телефона", cv2.WND_PROP_TOPMOST, 1)
-
 print("\n Слежу за водой\n")
 
+root = tk.Tk()
+root.title("Pelmeni Scaner-AI ver1.048597 BETA")
+root.geometry("1040x620")
 
-while True:
+canvas = tk.Canvas(root, width=640, height=480, bg="white")
+canvas.pack(side="left", fill="y", expand=False)
+
+right_panel = tk.Frame(root, width=400, bg="#17001E")
+right_panel.pack(side="right", fill="both", expand=True)
+
+
+status_var = tk.StringVar(value="Слежу за водой")
+status_label = tk.Label(
+    right_panel,
+    textvariable=status_var,
+    font=("Fixedsys Excelsior 3.01", 14),
+    fg="#00ff00",
+    bg="#17001E",
+    justify="left",
+    anchor="nw",
+    wraplength=380
+)
+status_label.pack(side="top", fill="x", padx=10, pady=10)
+
+pole = tk.Entry(right_panel, width=50, bg="#17001E", fg="#00FF00", insertbackground="#00FF00")
+pole.insert(0, "rtsp://192.168.0.10:1642")
+pole.pack(padx=10, pady=4)
+
+label_min = tk.Label(right_panel, text="Минут варки:", font=("Consolas", 12), fg="#00FF00", bg="#17001E")
+label_min.pack(padx=10, pady=4)
+
+krutilka = tk.Spinbox(right_panel, from_=1, to=30, width=10, bg="#CA92FF", fg="#00FF00")
+krutilka.delete(0, "end")
+krutilka.insert(0, "8")
+krutilka.pack(padx=10, pady=10)
+
+TEKUSCHY_ADRES = "rtsp://192.168.0.10:1642"
+UZHE_RABOTAET = False
+
+cap = None
+
+def ya_skazala_startuem():
+    global TEKUSCHY_ADRES, TIMER_MNIUTES, UZHE_RABOTAET, cap
+    if UZHE_RABOTAET:
+        status_var.set("Уже запущено")
+        return
+
+    adres = pole.get().strip()
+    if not adres.startswith("rtsp://"):
+        status_var.set("Адрес должен начинаться с rtsp://")
+        return
+
+    try:
+        minutu = int(krutilka.get())
+    except ValueError:
+        status_var.set("ВВЕДИ ЧИСЛО А НЕ ИЕРОГИЛФЫ")
+        return
+
+    TEKUSCHY_ADRES = adres
+    TIMER_MNIUTES = minutu
+
+    print(f"подключение к серверу на телефоне: {TEKUSCHY_ADRES}")
+    status_var.set(f"Подключаюсь к {TEKUSCHY_ADRES}...")
+
+    cap = cv2.VideoCapture(TEKUSCHY_ADRES, cv2.CAP_FFMPEG)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, RTSP_TIMEOUT)
+    cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, RTSP_TIMEOUT)
+
+    if not cap.isOpened():
+        status_var.set("Неверный адрес или не запущена камера")
+        cap.release()
+        return
+
+    ret, frame = cap.read()
+    if not ret or frame is None:
+        status_var.set("Первый кадр стал лост медией")
+        cap.release()
+        return
+
+    UZHE_RABOTAET = True
+    status_var.set("ПОДКЛЮЧЕНО СЛЕЖУ ЗА ВОДОЙ")
+    root.after(33, tick)
+
+    
+knopka = tk.Button(right_panel, text="НАЧАТЬ СКАНИРОВАНИЕ ПЕЛЬМЕНЕЙ", command=ya_skazala_startuem)
+knopka.pack(padx=10, pady=10)
+
+def tick():
+    global frame_counter, current_state, timer_start, last_timer_print_time, wait_until, cap
     ret, frame = cap.read()
 
-    if not ret:
+    if not ret or frame is None:
         print("Потерян кадр")
-        break
-    frame_counter += 1
+        cap.release()
+        cap = cv2.VideoCapture(TEKUSCHY_ADRES, cv2.CAP_FFMPEG)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        root.after(5000, tick)
+        return
 
-    display_label = ""
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    black = np.mean(gray_frame) < 10.0
+    if black:
+        display_label = "ЧЁРНЫЙ ЭКРАН ИЛИ НЕТ СИГНАЛА Я ХЗ"
+        
 
-    display_color = (255,255,255)
-
-    if frame_counter % CHECK_EVERY_N_FRAMES == 0:
-        if current_state != State_Gotovo:
+    if not black:
+        frame_counter += 1
+        if frame_counter % CHECK_EVERY_N_FRAMES == 0 and current_state != State_Gotovo:
             class_name, confidence = predict(frame)
 
-            display_label = f"{class_name} ({confidence:.0%})"
-
-            print(f"Вижу: {class_name} | Уверенность: {confidence:.0%}")
-
-        if current_state == State_Wath_Water:
-            if class_name == 'кипящая_вода' and confidence >= CONFIDENCE_THRESHOLD:
-                print("\nВОДА ЗАКИПЕЛА\n")
-                current_state = State_Wath_Pelmeni
-
-                display_color = (0, 165, 255)
-
-                time.sleep(75)
-
-        elif current_state == State_Wath_Pelmeni:
-            if class_name == 'кипящие_пельмени' and  confidence >= CONFIDENCE_THRESHOLD:
-                print("ПИЛЬМЕНИ КИПЯТ НАХУЙ")
-                timer_start = time.time()
-                current_state = State_Wath_Varka
-
-                display_color = (0, 255, 0)
-
-        elif current_state == State_Wath_Varka:
-
-            elapsed = time.time() - timer_start
-
-            remaining = (TIMER_MNIUTES * 60) - elapsed
-
-            if remaining <= 0:
-                print("ПЕЛЬМЕНИ ГОТОВЫ")
-                current_state = State_Gotovo
-                display_label = "ПЕЛЬМЕНИ ГОТОВЫ"
-                display_color = (0,255,0)
+            if confidence >= CONFIDENCE_THRESHOLD:
+                status_var.set(f"Вижу: {class_name} | Уверенность: {confidence:.0%}")
+                print(f"Вижу: {class_name} | Уверенность: {confidence:.0%}")
             else:
-                 
-                now = time.time()
+                status_var.set(f"Сомнение: {class_name} | Уверенность: {confidence:.0%} (ниже порога {CONFIDENCE_THRESHOLD})")
+                print(f"Сомнение: {class_name} | Уверенность: {confidence:.0%} (ниже порога {CONFIDENCE_THRESHOLD})")
 
-                if now - last_timer_print_time >= 60:
-                    mins_left = int(remaining // 60)
-                    secs_left = int(remaining % 60)
+            if current_state == State_Wath_Water:
+                if class_name == 'кипящая_вода' and confidence >= CONFIDENCE_THRESHOLD:
+                    print("\nВОДА ЗАКИПЕЛА\n")
+                    current_state = State_Wath_Pelmeni
+                    wait_until = time.time() + 75
 
-                    print(f"Осталось: {mins_left} мин, {secs_left} сек")
+            elif current_state == State_Wath_Pelmeni:
+                if time.time() >= wait_until \
+                    and class_name == 'кипящие_пельмени' and  confidence >= CONFIDENCE_THRESHOLD:
+                    print("ПИЛЬМЕНИ КИПЯТ НАХУЙ")
+                    timer_start = time.time()
+                    current_state = State_Wath_Varka
 
-                    last_timer_print_time = now
+            elif current_state == State_Wath_Varka:
+                elapsed = time.time() - timer_start
+                remaining = (TIMER_MNIUTES * 60) - elapsed
+                if remaining <= 0:
+                        print("ПЕЛЬМЕНИ ГОТОВЫ")
+                        current_state = State_Gotovo
+                else:
+                    now = time.time()
+                    if now - last_timer_print_time >= 60:
+                        mins_left = int(remaining // 60)
+                        secs_left = int(remaining % 60)
+                        print(f"Осталось: {mins_left} мин, {secs_left} сек")
+                        last_timer_print_time = now
+                        mins_left = int(remaining // 60)
+                        secs_left = int(remaining % 60)
+                        status_var.set(f"Ещё нужно варить: {int(remaining // 60)}:{int(remaining % 60):02d}")
 
-                    mins_left = int(remaining // 60)
-                    secs_left = int(remaining % 60)
+            elif current_state == State_Gotovo: 
+                 status_var.set("ПЕЛЬМЕНИ ГОТОВЫ!")
 
-                    display_label = f"Варитья {mins_left}:{secs_left:02d}"
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    photo = ImageTk.PhotoImage(Image.fromarray(rgb))
+    canvas.delete("cam")
+    canvas.create_image(0,0, anchor="nw", image=photo, tags="cam")
+    canvas.photo = photo
 
-                    display_color = (0,255,255)
-
-        elif current_state == State_Gotovo:
-                            
-            display_label = "ПЕЛЬМЕНИ ГОТОВЫ!"
-            display_color = (0,255,0)
-    if display_label:
-        cv2.putText(frame, display_label, (10,40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, display_color, 2)
-        cv2.imshow("Камера с телефона", frame)
-
-    if cv2.waitKey(1) & 0xFF == 27:
-        break                
-
-cap.release()
-cv2.destroyAllWindows()
+    root.after(33, tick)
     
+def on_close():
+    cap.release()
+    root.destroy()
+
+root.protocol("WM_DELETE_WINDOW", on_close)
+root.mainloop()
